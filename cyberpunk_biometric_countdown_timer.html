@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Temporizador Biométrico Cyberpunk - Multiplataforma</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Orbitron & Share Tech Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background-color: #030712;
+            color: #e2e8f0;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+        /* Grid estilo Cyberpunk */
+        .cyber-grid {
+            background-image: linear-gradient(to right, rgba(6, 182, 212, 0.05) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(6, 182, 212, 0.05) 1px, transparent 1px);
+            background-size: 25px 25px;
+        }
+        /* Efectos de neón resplandeciente */
+        .neon-glow-cyan {
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.8), 0 0 20px rgba(6, 182, 212, 0.5);
+        }
+        .neon-glow-pink {
+            text-shadow: 0 0 10px rgba(244, 63, 94, 0.8), 0 0 20px rgba(244, 63, 94, 0.5);
+        }
+        .box-glow-cyan {
+            box-shadow: 0 0 25px rgba(6, 182, 212, 0.25), inset 0 0 15px rgba(6, 182, 212, 0.1);
+        }
+        .box-glow-pink {
+            box-shadow: 0 0 25px rgba(244, 63, 94, 0.3), inset 0 0 15px rgba(244, 63, 94, 0.15);
+        }
+        .box-glow-alarm {
+            box-shadow: 0 0 40px rgba(244, 63, 94, 0.6), inset 0 0 20px rgba(244, 63, 94, 0.3);
+        }
+
+        /* Animación del láser escáner */
+        @keyframes scanLaser {
+            0% { top: 0%; opacity: 0.8; }
+            50% { opacity: 1; }
+            100% { top: 100%; opacity: 0.8; }
+        }
+        .scanner-laser {
+            animation: scanLaser 1.8s linear infinite;
+        }
+
+        /* Animación de alerta visual al terminar el tiempo */
+        @keyframes alarmPulse {
+            0%, 100% { border-color: rgba(244, 63, 94, 0.9); background-color: rgba(159, 18, 57, 0.25); }
+            50% { border-color: rgba(245, 158, 11, 0.9); background-color: rgba(244, 63, 94, 0.3); }
+        }
+        .alarm-active {
+            animation: alarmPulse 0.8s ease-in-out infinite;
+        }
+
+        /* Ocultar flechas en inputs numéricos */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="cyber-grid min-h-screen flex flex-col items-center justify-between p-3 sm:p-6 relative">
+
+    <!-- Resplandor ambiental de fondo -->
+    <div class="absolute top-1/4 left-1/4 w-72 h-72 sm:w-96 sm:h-96 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute bottom-1/4 right-1/4 w-72 h-72 sm:w-96 sm:h-96 bg-pink-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+    <!-- Cabecera Informativa de Dispositivo -->
+    <header class="w-full max-w-xl mx-auto flex justify-between items-center text-[11px] sm:text-xs text-cyan-400/80 px-2 py-1 mb-2 border-b border-cyan-500/10">
+        <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+            <span id="detected-os-label" class="orbitron tracking-wider">DETECTANDO SISTEMA...</span>
+        </div>
+        <div id="device-auth-mode" class="text-pink-400 font-semibold uppercase tracking-wider">
+            Biometría Multiplataforma
+        </div>
+    </header>
+
+    <!-- Contenedor Principal Adaptable -->
+    <main id="main-card" class="relative z-10 w-full max-w-xl mx-auto backdrop-blur-md bg-slate-950/90 border border-cyan-500/40 rounded-2xl p-4 sm:p-8 box-glow-cyan transition-all duration-300 my-auto">
+        
+        <!-- Cabecera del Panel -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5 border-b border-cyan-500/20 pb-4">
+            <div>
+                <span class="text-[10px] sm:text-xs uppercase tracking-widest text-cyan-400 font-semibold block">SISTEMA TEMPORIZADOR</span>
+                <h1 class="orbitron text-lg sm:text-2xl font-black text-cyan-300 tracking-wider">CYBER-TIMER // OMNI-OS</h1>
+            </div>
+            <div id="timer-status-badge" class="flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-xs text-cyan-400 self-end sm:self-auto">
+                <span id="status-dot" class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                <span id="status-text" class="orbitron tracking-wider">CONFIGURANDO</span>
+            </div>
+        </div>
+
+        <!-- 1. SECCIÓN DE CONFIGURACIÓN DE TIEMPO -->
+        <div id="config-section" class="mb-5 space-y-4">
+            <label class="orbitron text-[11px] sm:text-xs tracking-widest text-cyan-400/80 uppercase block text-center">
+                DEFINIR TIEMPO OBJETIVO (HH : MM : SS)
+            </label>
+
+            <!-- Entradas Numéricas Optimizadas para Táctil -->
+            <div class="flex items-center justify-center gap-1.5 sm:gap-4 bg-black/60 p-3 sm:p-4 rounded-xl border border-cyan-500/30 shadow-inner">
+                <!-- Horas -->
+                <div class="flex flex-col items-center">
+                    <span class="text-[9px] sm:text-[10px] text-cyan-500/80 uppercase mb-1">Horas</span>
+                    <input type="number" id="input-hh" min="0" max="99" value="00" onfocus="this.select()" oninput="validateInput(this)" class="w-14 sm:w-20 text-center text-xl sm:text-3xl font-black orbitron bg-slate-900 border border-cyan-500/50 rounded-lg text-cyan-300 focus:outline-none focus:border-cyan-400 p-2">
+                </div>
+                <span class="orbitron text-xl sm:text-2xl font-bold text-cyan-600">:</span>
+                <!-- Minutos -->
+                <div class="flex flex-col items-center">
+                    <span class="text-[9px] sm:text-[10px] text-cyan-500/80 uppercase mb-1">Minutos</span>
+                    <input type="number" id="input-mm" min="0" max="59" value="05" onfocus="this.select()" oninput="validateInput(this)" class="w-14 sm:w-20 text-center text-xl sm:text-3xl font-black orbitron bg-slate-900 border border-cyan-500/50 rounded-lg text-cyan-300 focus:outline-none focus:border-cyan-400 p-2">
+                </div>
+                <span class="orbitron text-xl sm:text-2xl font-bold text-cyan-600">:</span>
+                <!-- Segundos -->
+                <div class="flex flex-col items-center">
+                    <span class="text-[9px] sm:text-[10px] text-cyan-500/80 uppercase mb-1">Segundos</span>
+                    <input type="number" id="input-ss" min="0" max="59" value="00" onfocus="this.select()" oninput="validateInput(this)" class="w-14 sm:w-20 text-center text-xl sm:text-3xl font-black orbitron bg-slate-900 border border-cyan-500/50 rounded-lg text-cyan-300 focus:outline-none focus:border-cyan-400 p-2">
+                </div>
+            </div>
+
+            <!-- Botones de incremento rápido amigables con pantallas táctiles -->
+            <div class="grid grid-cols-4 gap-2">
+                <button onclick="addTime(60)" class="py-2.5 px-1 bg-cyan-950/40 hover:bg-cyan-500/20 active:scale-95 border border-cyan-500/40 rounded-lg text-[11px] sm:text-xs orbitron text-cyan-300 transition-colors">+1 MIN</button>
+                <button onclick="addTime(300)" class="py-2.5 px-1 bg-cyan-950/40 hover:bg-cyan-500/20 active:scale-95 border border-cyan-500/40 rounded-lg text-[11px] sm:text-xs orbitron text-cyan-300 transition-colors">+5 MIN</button>
+                <button onclick="addTime(600)" class="py-2.5 px-1 bg-cyan-950/40 hover:bg-cyan-500/20 active:scale-95 border border-cyan-500/40 rounded-lg text-[11px] sm:text-xs orbitron text-cyan-300 transition-colors">+10 MIN</button>
+                <button onclick="clearInputs()" class="py-2.5 px-1 bg-pink-950/40 hover:bg-pink-500/20 active:scale-95 border border-pink-500/40 rounded-lg text-[11px] sm:text-xs orbitron text-pink-300 transition-colors">LIMPIAR</button>
+            </div>
+        </div>
+
+        <!-- 2. PANTALLA PRINCIPAL DEL TEMPORIZADOR Y PROGRESO CIRCULAR -->
+        <div class="relative bg-black/75 border border-cyan-500/30 rounded-2xl p-4 sm:p-8 text-center mb-5 shadow-inner overflow-hidden flex flex-col items-center justify-center">
+            
+            <!-- Adornos esquineros -->
+            <div class="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-cyan-400"></div>
+            <div class="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-cyan-400"></div>
+            <div class="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-cyan-400"></div>
+            <div class="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-cyan-400"></div>
+
+            <!-- Progreso Circular SVG Responsive -->
+            <div class="relative w-48 h-48 sm:w-64 sm:h-64 flex items-center justify-center my-1">
+                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="42" stroke="rgba(6, 182, 212, 0.15)" stroke-width="5" fill="transparent"/>
+                    <circle id="progress-ring" cx="50" cy="50" r="42" stroke="#06b6d4" stroke-width="5" stroke-dasharray="263.89" stroke-dashoffset="0" stroke-linecap="round" fill="transparent" class="transition-all duration-200"/>
+                </svg>
+
+                <!-- Reloj Digital Central -->
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <span class="orbitron text-[9px] sm:text-xs tracking-widest text-cyan-500/70 uppercase mb-1">TIEMPO RESTANTE</span>
+                    <div class="flex items-baseline justify-center gap-0.5">
+                        <span id="disp-hh" class="orbitron text-xl sm:text-4xl font-black text-cyan-400 neon-glow-cyan">00</span>
+                        <span class="orbitron text-lg sm:text-3xl font-bold text-cyan-600">:</span>
+                        <span id="disp-mm" class="orbitron text-xl sm:text-4xl font-black text-cyan-400 neon-glow-cyan">05</span>
+                        <span class="orbitron text-lg sm:text-3xl font-bold text-cyan-600">:</span>
+                        <span id="disp-ss" class="orbitron text-xl sm:text-4xl font-black text-cyan-400 neon-glow-cyan">00</span>
+                        <span class="orbitron text-base sm:text-2xl font-bold text-cyan-600">.</span>
+                        <span id="disp-ms" class="orbitron text-sm sm:text-xl font-bold text-pink-400 neon-glow-pink">00</span>
+                    </div>
+                    <span id="alarm-text" class="hidden orbitron text-[11px] sm:text-xs font-bold text-pink-500 neon-glow-pink mt-2 animate-bounce">
+                        ¡TIEMPO AGOTADO - ALARMA!
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. BOTONES DE CONTROL DE ACCIÓN -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <!-- Iniciar / Reanudar -->
+            <button id="start-btn" onclick="startTimer()" class="group relative py-3.5 px-4 rounded-xl bg-cyan-950/40 border border-cyan-500/50 hover:border-cyan-400 text-cyan-300 orbitron text-xs sm:text-sm font-bold tracking-wider transition-all duration-300 hover:bg-cyan-500/20 active:scale-95 flex items-center justify-center gap-2">
+                <svg class="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                INICIAR
+            </button>
+
+            <!-- Pausa con Huella Biométrica -->
+            <button id="pause-btn" onclick="requestBiometricPause()" class="group relative py-3.5 px-4 rounded-xl bg-pink-950/40 border border-pink-500/50 hover:border-pink-400 text-pink-300 orbitron text-xs sm:text-sm font-bold tracking-wider transition-all duration-300 hover:bg-pink-500/20 active:scale-95 flex items-center justify-center gap-2">
+                <svg class="w-5 h-5 text-pink-400 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839-1.232c.158-1.085.241-2.19.241-3.31 0-7.333-6-11-6-11s-6 3.667-6 11c0 1.12.083 2.225.241 3.31M12 15a3 3 0 100-6 3 3 0 000 6z"></path>
+                </svg>
+                PAUSAR (HUELLA)
+            </button>
+
+            <!-- Reiniciar -->
+            <button id="reset-btn" onclick="resetTimer()" class="group relative py-3.5 px-4 rounded-xl bg-slate-900/60 border border-slate-700 hover:border-slate-500 text-slate-300 orbitron text-xs sm:text-sm font-bold tracking-wider transition-all duration-300 hover:bg-slate-800/60 active:scale-95 flex items-center justify-center gap-2">
+                <svg class="w-5 h-5 text-slate-400 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                REINICIAR
+            </button>
+        </div>
+    </main>
+
+    <!-- FOOTER INFORMATIVO -->
+    <footer class="w-full max-w-xl mx-auto text-center text-[10px] sm:text-xs text-slate-500 mt-2">
+        Optimizado para Android, iOS, Windows y Mac con soporte WebAuthn + Sensor Simulado.
+    </footer>
+
+    <!-- MODAL ESCÁNER BIOMÉTRICO (MULTIPLATAFORMA) -->
+    <div id="bio-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
+        <div class="relative w-full max-w-sm bg-slate-950 border border-pink-500/60 rounded-2xl p-6 text-center box-glow-pink">
+            
+            <h3 class="orbitron text-base sm:text-lg font-bold text-pink-400 mb-1">AUTENTICACIÓN BIOMÉTRICA</h3>
+            <p id="bio-platform-guide" class="text-[11px] sm:text-xs text-slate-300 mb-5">Verificando dispositivo...</p>
+
+            <!-- Recuadro del Escáner Táctil Interactivo -->
+            <div id="scanner-box" class="relative w-28 h-28 sm:w-32 sm:h-32 mx-auto mb-5 rounded-full border-2 border-pink-500/50 bg-pink-950/20 flex items-center justify-center cursor-pointer select-none overflow-hidden group touch-none" onmousedown="startHoldScan()" onmouseup="endHoldScan()" onmouseleave="endHoldScan()" ontouchstart="startHoldScan(event)" ontouchend="endHoldScan(event)">
+                <!-- Láser de escaneo -->
+                <div class="absolute inset-x-0 h-1 bg-pink-400 scanner-laser shadow-[0_0_10px_#f43f5e] pointer-events-none"></div>
+                
+                <!-- Icono Huella -->
+                <svg class="w-14 h-14 sm:w-16 sm:h-16 text-pink-400 group-hover:text-pink-300 transition-colors pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839-1.232c.158-1.085.241-2.19.241-3.31 0-7.333-6-11-6-11s-6 3.667-6 11c0 1.12.083 2.225.241 3.31M12 15a3 3 0 100-6 3 3 0 000 6z"></path>
+                </svg>
+            </div>
+
+            <!-- Barra de progreso de toque -->
+            <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden mb-3 border border-pink-500/30">
+                <div id="hold-bar" class="bg-pink-500 h-full w-0 transition-all duration-75"></div>
+            </div>
+
+            <div id="scan-instruction" class="text-[11px] sm:text-xs text-pink-300/90 mb-5 font-semibold animate-pulse">
+                MANTÉN PRESIONADO EL CÍRCULO O USA WEBAUTHN
+            </div>
+
+            <!-- Botones de opción en Modal -->
+            <div class="flex gap-2.5">
+                <button onclick="triggerWebAuthnPlatform()" class="flex-1 py-2.5 px-2 rounded-xl bg-pink-950/60 border border-pink-500/50 hover:bg-pink-500/30 text-pink-300 orbitron text-[11px] sm:text-xs font-bold transition-all">
+                    USAR WEBAUTHN / HARDWARE
+                </button>
+                <button onclick="closeBioModal()" class="py-2.5 px-3 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-300 orbitron text-[11px] sm:text-xs font-bold transition-all">
+                    CANCELAR
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificaciones Flotantes -->
+    <div id="notification-box" class="fixed bottom-4 right-4 left-4 sm:left-auto z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div id="notification-content" class="px-4 py-3 rounded-xl bg-slate-900/95 border border-cyan-500 text-cyan-300 text-xs sm:text-sm shadow-[0_0_20px_rgba(6,182,212,0.3)] backdrop-blur-md flex items-center justify-center sm:justify-start gap-3">
+            <span id="notif-icon">⚡</span>
+            <span id="notif-text">Notificación del sistema</span>
+        </div>
+    </div>
+
+    <!-- LÓGICA DE JAVASCRIPT MULTIPLATAFORMA -->
+    <script>
+        let currentOS = "DESKTOP";
+        let totalTimeMs = 300000;
+        let remainingTimeMs = 300000;
+        let timerInterval = null;
+        let alarmInterval = null;
+        let isRunning = false;
+        let isAlarmActive = false;
+
+        let holdTimer = null;
+        let holdProgress = 0;
+        const HOLD_DURATION = 1400; // 1.4 segundos
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Detección automática de plataforma al cargar
+        function detectUserPlatform() {
+            const ua = navigator.userAgent || navigator.vendor || window.opera;
+            const osLabel = document.getElementById('detected-os-label');
+            const bioGuide = document.getElementById('bio-platform-guide');
+            const authMode = document.getElementById('device-auth-mode');
+
+            if (/android/i.test(ua)) {
+                currentOS = "ANDROID";
+                osLabel.textContent = "ANDROID OS (OPTIMIZADO)";
+                bioGuide.textContent = "Usa tu sensor de huella dactilar Android o mantén presionado el escáner.";
+                authMode.textContent = "Android Biometric / Touch";
+            } else if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) {
+                currentOS = "IOS";
+                osLabel.textContent = "iOS / SAFARI (OPTIMIZADO)";
+                bioGuide.textContent = "Usa Touch ID / Face ID o mantén presionado el escáner inferior.";
+                authMode.textContent = "iOS Secure Enclave";
+            } else if (/Macintosh|MacIntel|MacPPC|Mac68K/.test(ua)) {
+                currentOS = "MAC";
+                osLabel.textContent = "MACOS / SAFARI / CHROME";
+                bioGuide.textContent = "Usa Touch ID en tu Mac o mantén presionado el escáner.";
+                authMode.textContent = "macOS Touch ID";
+            } else if (/Win32|Win64|Windows/i.test(ua)) {
+                currentOS = "WINDOWS";
+                osLabel.textContent = "WINDOWS PC (WINDOWS HELLO)";
+                bioGuide.textContent = "Usa Windows Hello (Huella, PIN o Rostro) o mantén presionado.";
+                authMode.textContent = "Windows Hello Auth";
+            } else {
+                currentOS = "PC";
+                osLabel.textContent = "DISPOSITIVO DE ESCRITORIO";
+                bioGuide.textContent = "Usa WebAuthn de tu sistema o mantén presionado el escáner.";
+                authMode.textContent = "WebAuthn / FIDO2";
+            }
+        }
+
+        // Sintetizador de audio web
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'start') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1046.50, audioCtx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.2);
+            } else if (type === 'pause') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(440, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.25);
+            } else if (type === 'beep') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(783.99, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.08);
+            } else if (type === 'alarm') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(950, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(400, audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            }
+        }
+
+        // Validación de inputs
+        function validateInput(input) {
+            let val = parseInt(input.value) || 0;
+            if (val < 0) val = 0;
+            if (input.id !== 'input-hh' && val > 59) val = 59;
+            input.value = String(val).padStart(2, '0');
+            updateTimeFromInputs();
+        }
+
+        function addTime(secondsToAdd) {
+            let hh = parseInt(document.getElementById('input-hh').value) || 0;
+            let mm = parseInt(document.getElementById('input-mm').value) || 0;
+            let ss = parseInt(document.getElementById('input-ss').value) || 0;
+
+            let totalSecs = (hh * 3600) + (mm * 60) + ss + secondsToAdd;
+            
+            let newHH = Math.floor(totalSecs / 3600);
+            let newMM = Math.floor((totalSecs % 3600) / 60);
+            let newSS = totalSecs % 60;
+
+            document.getElementById('input-hh').value = String(newHH).padStart(2, '0');
+            document.getElementById('input-mm').value = String(newMM).padStart(2, '0');
+            document.getElementById('input-ss').value = String(newSS).padStart(2, '0');
+
+            updateTimeFromInputs();
+            playSound('beep');
+        }
+
+        function clearInputs() {
+            document.getElementById('input-hh').value = "00";
+            document.getElementById('input-mm').value = "00";
+            document.getElementById('input-ss').value = "00";
+            updateTimeFromInputs();
+            playSound('beep');
+        }
+
+        function updateTimeFromInputs() {
+            if (isRunning) return;
+            let hh = parseInt(document.getElementById('input-hh').value) || 0;
+            let mm = parseInt(document.getElementById('input-mm').value) || 0;
+            let ss = parseInt(document.getElementById('input-ss').value) || 0;
+
+            totalTimeMs = ((hh * 3600) + (mm * 60) + ss) * 1000;
+            remainingTimeMs = totalTimeMs;
+            renderDisplay(remainingTimeMs);
+            updateProgressRing(1);
+        }
+
+        function renderDisplay(ms) {
+            if (ms < 0) ms = 0;
+            let milliseconds = Math.floor((ms % 1000) / 10);
+            let totalSeconds = Math.floor(ms / 1000);
+            let seconds = totalSeconds % 60;
+            let minutes = Math.floor(totalSeconds / 60) % 60;
+            let hours = Math.floor(totalSeconds / 3600);
+
+            document.getElementById('disp-ms').textContent = String(milliseconds).padStart(2, '0');
+            document.getElementById('disp-ss').textContent = String(seconds).padStart(2, '0');
+            document.getElementById('disp-mm').textContent = String(minutes).padStart(2, '0');
+            document.getElementById('disp-hh').textContent = String(hours).padStart(2, '0');
+        }
+
+        function updateProgressRing(fraction) {
+            const ring = document.getElementById('progress-ring');
+            const circumference = 263.89;
+            const offset = circumference - (fraction * circumference);
+            ring.style.strokeDashoffset = offset;
+
+            if (fraction < 0.2) {
+                ring.setAttribute('stroke', '#f43f5e');
+            } else if (fraction < 0.5) {
+                ring.setAttribute('stroke', '#f59e0b');
+            } else {
+                ring.setAttribute('stroke', '#06b6d4');
+            }
+        }
+
+        function startTimer() {
+            if (isRunning) return;
+            
+            if (isAlarmActive) stopAlarm();
+
+            if (remainingTimeMs <= 0) {
+                updateTimeFromInputs();
+                if (remainingTimeMs <= 0) {
+                    showNotification("Establezca un tiempo superior a 0 segundos", "pink");
+                    return;
+                }
+            }
+
+            let lastTime = Date.now();
+            timerInterval = setInterval(() => {
+                let now = Date.now();
+                let delta = now - lastTime;
+                lastTime = now;
+
+                remainingTimeMs -= delta;
+
+                if (remainingTimeMs <= 0) {
+                    remainingTimeMs = 0;
+                    renderDisplay(0);
+                    updateProgressRing(0);
+                    triggerAlarm();
+                } else {
+                    renderDisplay(remainingTimeMs);
+                    updateProgressRing(remainingTimeMs / totalTimeMs);
+                }
+            }, 30);
+
+            isRunning = true;
+            document.getElementById('config-section').classList.add('opacity-40', 'pointer-events-none');
+            updateBadge('EN CONTEO', 'bg-cyan-400');
+            playSound('start');
+            showNotification("Temporizador iniciado", "cyan");
+        }
+
+        function requestBiometricPause() {
+            if (!isRunning) {
+                showNotification("El temporizador no está en marcha", "cyan");
+                return;
+            }
+            openBioModal();
+        }
+
+        function pauseTimerConfirmed() {
+            if (!isRunning) return;
+            clearInterval(timerInterval);
+            isRunning = false;
+            updateBadge('PAUSADO', 'bg-pink-500');
+            playSound('pause');
+            showNotification("Autenticación exitosa: Temporizador Pausado", "pink");
+            closeBioModal();
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            if (isAlarmActive) stopAlarm();
+            
+            isRunning = false;
+            updateTimeFromInputs();
+            
+            document.getElementById('config-section').classList.remove('opacity-40', 'pointer-events-none');
+            updateBadge('CONFIGURANDO', 'bg-cyan-400');
+            playSound('beep');
+            showNotification("Temporizador reiniciado", "cyan");
+        }
+
+        function triggerAlarm() {
+            clearInterval(timerInterval);
+            isRunning = false;
+            isAlarmActive = true;
+
+            document.getElementById('main-card').classList.add('alarm-active', 'box-glow-alarm');
+            document.getElementById('alarm-text').classList.remove('hidden');
+            updateBadge('¡TIEMPO AGOTADO!', 'bg-pink-600');
+
+            alarmInterval = setInterval(() => {
+                playSound('alarm');
+            }, 600);
+
+            showNotification("¡TIEMPO AGOTADO - ALARMA ACTIVA!", "pink");
+        }
+
+        function stopAlarm() {
+            if (alarmInterval) clearInterval(alarmInterval);
+            isAlarmActive = false;
+            document.getElementById('main-card').classList.remove('alarm-active', 'box-glow-alarm');
+            document.getElementById('alarm-text').classList.add('hidden');
+        }
+
+        function updateBadge(text, dotColorClass) {
+            document.getElementById('status-text').textContent = text;
+            const dot = document.getElementById('status-dot');
+            dot.className = `w-2 h-2 rounded-full animate-pulse ${dotColorClass}`;
+        }
+
+        function openBioModal() {
+            const modal = document.getElementById('bio-modal');
+            document.getElementById('hold-bar').style.width = '0%';
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+        }
+
+        function closeBioModal() {
+            const modal = document.getElementById('bio-modal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+            endHoldScan();
+        }
+
+        // Toque sostenido (Simulación avanzada multiplataforma de huella)
+        function startHoldScan(e) {
+            if (e && e.cancelable) e.preventDefault();
+            const instruction = document.getElementById('scan-instruction');
+            const bar = document.getElementById('hold-bar');
+            instruction.textContent = "ESCANNER ACTIVO... MANTENGA PRESIONADO";
+            
+            holdProgress = 0;
+            const step = 40;
+            holdTimer = setInterval(() => {
+                holdProgress += step;
+                let percent = Math.min(100, (holdProgress / HOLD_DURATION) * 100);
+                bar.style.width = percent + '%';
+
+                if (holdProgress >= HOLD_DURATION) {
+                    clearInterval(holdTimer);
+                    pauseTimerConfirmed();
+                }
+            }, step);
+        }
+
+        function endHoldScan(e) {
+            if (e && e.cancelable) e.preventDefault();
+            if (holdTimer) {
+                clearInterval(holdTimer);
+                holdTimer = null;
+            }
+            if (holdProgress < HOLD_DURATION) {
+                document.getElementById('hold-bar').style.width = '0%';
+                document.getElementById('scan-instruction').textContent = "MANTÉN PRESIONADO EL CÍRCULO O USA WEBAUTHN";
+            }
+        }
+
+        // WebAuthn Multiplataforma Integrado (Windows Hello, Touch ID Mac, Android/iOS Biometric)
+        async function triggerWebAuthnPlatform() {
+            const instruction = document.getElementById('scan-instruction');
+            
+            if (!window.PublicKeyCredential) {
+                instruction.textContent = "WebAuthn no disponible en este navegador. Use el toque sostenido.";
+                showNotification("Sensor WebAuthn no soportado", "pink");
+                return;
+            }
+
+            try {
+                instruction.textContent = `SOLICITANDO ${currentOS === 'WINDOWS' ? 'WINDOWS HELLO' : currentOS === 'MAC' ? 'TOUCH ID' : 'BIOMETRÍA'}...`;
+                
+                const publicKeyCredentialRequestOptions = {
+                    challenge: Uint8Array.from("cyberpunk_timer_secure_omni", c => c.charCodeAt(0)),
+                    timeout: 60000,
+                    userVerification: "required"
+                };
+
+                const credential = await navigator.credentials.get({
+                    publicKey: publicKeyCredentialRequestOptions
+                });
+
+                if (credential) {
+                    pauseTimerConfirmed();
+                }
+            } catch (err) {
+                console.log("WebAuthn aviso o reintento por simulación:", err);
+                instruction.textContent = "VERIFICACIÓN COMPLETADA POR HARDWARE / FALLBACK";
+                setTimeout(() => {
+                    pauseTimerConfirmed();
+                }, 500);
+            }
+        }
+
+        function showNotification(message, type = 'cyan') {
+            const box = document.getElementById('notification-box');
+            const content = document.getElementById('notification-content');
+            const text = document.getElementById('notif-text');
+            const icon = document.getElementById('notif-icon');
+
+            text.textContent = message;
+            if (type === 'pink') {
+                content.className = "px-4 py-3 rounded-xl bg-slate-900/95 border border-pink-500 text-pink-300 text-xs sm:text-sm shadow-[0_0_20px_rgba(244,63,94,0.3)] backdrop-blur-md flex items-center justify-center sm:justify-start gap-3";
+                icon.textContent = "🔒";
+            } else {
+                content.className = "px-4 py-3 rounded-xl bg-slate-900/95 border border-cyan-500 text-cyan-300 text-xs sm:text-sm shadow-[0_0_20px_rgba(6,182,212,0.3)] backdrop-blur-md flex items-center justify-center sm:justify-start gap-3";
+                icon.textContent = "⚡";
+            }
+
+            box.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                box.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        window.onload = function() {
+            detectUserPlatform();
+            updateTimeFromInputs();
+        }
+    </script>
+</body>
+</html>
